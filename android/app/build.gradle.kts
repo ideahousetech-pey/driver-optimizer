@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.driver_optimizer"
+    namespace = "com.driver_optimizer"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
