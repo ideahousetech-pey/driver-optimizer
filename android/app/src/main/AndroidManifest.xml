@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.driver.optimizer">
 
+<<<<<<< HEAD
     <!-- 🌐 INTERNET -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
@@ -22,25 +23,48 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <!-- 🔔 NOTIFICATION (Android 13+) -->
+=======
+    <!-- PERMISSIONS -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
         android:name="${applicationName}"
         android:label="Driver Optimizer"
+<<<<<<< HEAD
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
 
         <!-- ✅ FOREGROUND SERVICE (WAJIB untuk stabilitas) -->
+=======
+        android:icon="@mipmap/ic_launcher">
+
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:exported="false"
             android:foregroundServiceType="location" />
 
+<<<<<<< HEAD
         <!-- ✅ AUTO START SAAT HP RESTART -->
+=======
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
         <receiver
             android:name="id.flutter.flutter_background_service.FlutterBackgroundServiceBootReceiver"
             android:enabled="true"
             android:exported="true">
+<<<<<<< HEAD
 
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
@@ -49,6 +73,13 @@
         </receiver>
 
         <!-- 🎯 MAIN ACTIVITY -->
+=======
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
         <activity
             android:name=".MainActivity"
             android:exported="true"

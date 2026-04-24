@@ -11,10 +11,13 @@ void main() async {
   };
 
   runApp(const DriverOptimizerApp());
+<<<<<<< HEAD
 
   Future.delayed(const Duration(seconds: 1), () {
     BackgroundService.initialize();
   });
+=======
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
 }
 
 class DriverOptimizerApp extends StatelessWidget {

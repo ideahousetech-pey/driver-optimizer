@@ -1,6 +1,11 @@
 {
+<<<<<<< HEAD
     "name": "driver_optimizer_clean",
     "short_name": "driver_optimizer_clean",
+=======
+    "name": "driver_optimizer",
+    "short_name": "driver_optimizer",
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

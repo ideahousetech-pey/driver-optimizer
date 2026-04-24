@@ -5,7 +5,11 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
+<<<<<<< HEAD
 	<string>Driver Optimizer Clean</string>
+=======
+	<string>Driver Optimizer</string>
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +17,11 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
+<<<<<<< HEAD
 	<string>driver_optimizer_clean</string>
+=======
+	<string>driver_optimizer</string>
+>>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
