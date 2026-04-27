@@ -14,38 +14,47 @@ class _DashboardPageState extends State<DashboardPage> {
   bool isRunning = false;
 
   Future<void> startService() async {
-    try {
-      final service = FlutterBackgroundService();
+  try {
+    final service = FlutterBackgroundService();
 
-      bool running = await service.isRunning();
-      if (running) {
-        debugPrint("Already running");
-        return;
-      }
-
-      // PERMISSION
-      final location = await Permission.location.request();
-      final notification = await Permission.notification.request();
-
-      if (!location.isGranted || !notification.isGranted) {
-        debugPrint("Permission denied");
-        return;
-      }
-
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      await BackgroundService.initialize();
-
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      await service.startService();
-
-      setState(() => isRunning = true);
-
-    } catch (e) {
-      debugPrint("START ERROR: $e");
+    // 🔥 cek dulu
+    final running = await service.isRunning();
+    if (running) {
+      debugPrint("Service already running");
+      return;
     }
+
+    // 🔥 request permission
+    final location = await Permission.location.request();
+    final notification = await Permission.notification.request();
+
+    if (!location.isGranted || !notification.isGranted) {
+      debugPrint("Permission denied");
+      return;
+    }
+
+    // 🔥 delay stabilisasi
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // 🔥 init hanya sekali
+    await BackgroundService.initialize();
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // 🔥 start service
+    await service.startService();
+
+    setState(() {
+      isRunning = true;
+    });
+
+    debugPrint("SERVICE START SUCCESS");
+
+  } catch (e, stack) {
+    debugPrint("START ERROR: $e");
+    debugPrint(stack.toString());
   }
+}
 
   Future<void> stopService() async {
     final service = FlutterBackgroundService();

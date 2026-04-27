@@ -4,7 +4,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 class WatchdogService {
   static void start(ServiceInstance service) {
     try {
-      debugPrint("Watchdog started");
+      debugPrint("WATCHDOG STARTED");
     } catch (e) {
       debugPrint("WATCHDOG ERROR: $e");
     }
