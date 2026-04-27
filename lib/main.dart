@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'core/services/background_service.dart';
 import 'features/dashboard/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await BackgroundService.initialize();
 
   FlutterError.onError = (FlutterErrorDetails details) {
-    // log error production
+    debugPrint("FLUTTER ERROR: ${details.exception}");
   };
 
   runApp(const DriverOptimizerApp());
