@@ -1,20 +1,3 @@
-<<<<<<< HEAD
-=======
-buildscript {
-    val kotlinVersion by extra("1.9.24")
-
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath("com.android.tools.build:gradle:8.5.0")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    }
-}
-
->>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e
 allprojects {
     repositories {
         google()
@@ -22,7 +5,6 @@ allprojects {
     }
 }
 
-<<<<<<< HEAD
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")
@@ -40,9 +22,3 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
-=======
-// Clean build folder
-tasks.register<Delete>("clean") {
-    delete(rootProject.buildDir)
-}
->>>>>>> 23b3b788b8d61b37d4a80f58fefae92992f8944e

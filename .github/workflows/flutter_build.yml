@@ -50,3 +50,9 @@ jobs:
         with:
           name: driver-optimizer-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Clean Flutter
+        run: flutter clean
+
+      - name: Delete pub cache
+        run: rm -rf ~/.pub-cache
