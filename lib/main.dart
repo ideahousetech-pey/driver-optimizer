@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'features/dashboard/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint("FLUTTER ERROR: ${details.exception}");
-  };
-
-  runApp(const DriverOptimizerApp());
+  runZonedGuarded(() {
+    runApp(const DriverOptimizerApp());
+  }, (error, stack) {
+    debugPrint("GLOBAL ERROR: $error");
+  });
 }
 
 class DriverOptimizerApp extends StatelessWidget {

@@ -15,33 +15,35 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> startService() async {
     try {
-      // Request permission
+      final service = FlutterBackgroundService();
+
+      bool running = await service.isRunning();
+      if (running) {
+        debugPrint("Already running");
+        return;
+      }
+
+      // PERMISSION
       final location = await Permission.location.request();
       final notification = await Permission.notification.request();
 
       if (!location.isGranted || !notification.isGranted) {
-        debugPrint("Permission ditolak");
+        debugPrint("Permission denied");
         return;
       }
 
-      // Init service
+      await Future.delayed(const Duration(milliseconds: 500));
+
       await BackgroundService.initialize();
 
-      // Start service
-      final service = FlutterBackgroundService();
-      bool isServiceRunning = await service.isRunning();
+      await Future.delayed(const Duration(milliseconds: 300));
 
-      if (!isServiceRunning) {
-        service.startService();
-      }
+      await service.startService();
 
-      setState(() {
-        isRunning = true;
-      });
+      setState(() => isRunning = true);
 
-      debugPrint("Service started");
     } catch (e) {
-      debugPrint("ERROR START SERVICE: $e");
+      debugPrint("START ERROR: $e");
     }
   }
 
@@ -49,19 +51,13 @@ class _DashboardPageState extends State<DashboardPage> {
     final service = FlutterBackgroundService();
     service.invoke("stopService");
 
-    setState(() {
-      isRunning = false;
-    });
-
-    debugPrint("Service stopped");
+    setState(() => isRunning = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Driver Optimizer"),
-      ),
+      appBar: AppBar(title: const Text("Driver Optimizer")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -70,12 +66,12 @@ class _DashboardPageState extends State<DashboardPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isRunning ? Colors.green[200] : Colors.red[200],
-                borderRadius: BorderRadius.circular(16),
+                color: isRunning ? Colors.green : Colors.red,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 isRunning ? "Service Running" : "Service Stopped",
-                style: const TextStyle(fontSize: 18),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
             const SizedBox(height: 30),
@@ -84,8 +80,6 @@ class _DashboardPageState extends State<DashboardPage> {
               onPressed: isRunning ? null : startService,
               child: const Text("START"),
             ),
-
-            const SizedBox(height: 10),
 
             ElevatedButton(
               onPressed: isRunning ? stopService : null,
