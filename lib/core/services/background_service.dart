@@ -52,64 +52,73 @@ class BackgroundService {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     try {
-      // 🔥 WAJIB untuk plugin di background
       DartPluginRegistrant.ensureInitialized();
 
-      // kasih delay supaya isolate stabil
-      await Future.delayed(const Duration(milliseconds: 300));
+      final FlutterLocalNotificationsPlugin notifications =
+          FlutterLocalNotificationsPlugin();
 
-      // 🔥 UPDATE AWAL (hapus "Initializing...")
+      // 🔥 INIT NOTIFICATION
+      const AndroidInitializationSettings androidSettings =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+
+      await notifications.initialize(
+        const InitializationSettings(android: androidSettings),
+      );
+
+      // 🔥 FORCE NOTIF (HILANGKAN "Initializing...")
+      await notifications.show(
+        999,
+        'Driver Optimizer',
+        'Service Started',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+             'driver_optimizer_channel',
+             'Driver Optimizer Service',
+             importance: Importance.low,
+             priority: Priority.low,
+             ongoing: true,
+          ),
+        ),
+      );
+
+      // OPTIONAL: tetap pakai foreground service
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title: 'Driver Optimizer',
-          content: 'Service starting...',
+          content: 'Service Running',
         );
       }
 
-      // HANDLE STOP
       service.on('stopService').listen((event) {
         service.stopSelf();
       });
 
-      // 🔥 START SERVICES (SAFE)
+      // 🔥 START SERVICE SAFE
       _safeRun(() => GPSService.start(), "GPS");
       _safeRun(() => NetworkService.start(), "NETWORK");
       _safeRun(() => WatchdogService.start(service), "WATCHDOG");
 
-      // 🔥 UPDATE LANGSUNG SETELAH START
-      if (service is AndroidServiceInstance) {
-        service.setForegroundNotificationInfo(
-          title: 'Driver Optimizer',
-          content: 'GPS & Network Active',
-        );
-      }
-
-      // 🔁 UPDATE BERKALA (BIAR HIDUP TERUS)
-      Timer.periodic(const Duration(seconds: 5), (timer) {
-        try {
-          if (service is AndroidServiceInstance) {
-            service.setForegroundNotificationInfo(
-              title: 'Driver Optimizer',
-              content: 'Running • GPS OK • Network OK',
-            );
-          }
-        } catch (e) {
-          debugPrint("NOTIFICATION ERROR: $e");
-        }
-      });
+     // 🔁 UPDATE REALTIME
+     Timer.periodic(const Duration(seconds: 5), (timer) async {
+       await notifications.show(
+         999,
+         'Driver Optimizer',
+         'GPS OK • Network OK • Running',
+         const NotificationDetails(
+           android: AndroidNotificationDetails(
+              'driver_optimizer_channel',
+              'Driver Optimizer Service',
+              importance: Importance.low,
+              priority: Priority.low,
+              ongoing: true,
+           ),
+         ),
+       );
+     });
 
     } catch (e, stack) {
-      debugPrint("FATAL SERVICE ERROR: $e");
-      debugPrint(stack.toString());
-    }
-  }
-
-  // 🔒 SAFE WRAPPER (ANTI CRASH)
-  static void _safeRun(Function fn, String name) {
-    try {
-      fn();
-    } catch (e) {
-      debugPrint("$name ERROR: $e");
+    debugPrint("SERVICE ERROR: $e");
+    debugPrint(stack.toString());
     }
   }
 }
