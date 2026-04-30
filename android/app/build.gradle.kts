@@ -9,14 +9,16 @@ android {
     namespace = "com.example.driver_optimizer"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
+    
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -24,11 +26,16 @@ android {
         applicationId = "com.example.driver_optimizer"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = 21
+        targetSdk = 34
+        versionCode = 1
+        versionName = "1.0"
     }
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+}
 
     buildTypes {
         release {
