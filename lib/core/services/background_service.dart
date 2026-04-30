@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-import '../utils/constants.dart';
 import 'gps_service.dart';
 import 'network_service.dart';
 import 'watchdog_service.dart';
@@ -13,18 +13,35 @@ class BackgroundService {
   static bool _isInitialized = false;
 
   static Future<void> initialize() async {
-    if (_isInitialized) return; // 🔥 penting
+    if (_isInitialized) return;
 
     final service = FlutterBackgroundService();
 
+    // 🔥 CREATE NOTIFICATION CHANNEL (WAJIB)
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'driver_optimizer_channel',
+      'Driver Optimizer Service',
+      description: 'Background service untuk menjaga GPS & koneksi',
+      importance: Importance.low,
+    );
+
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // 🔥 CONFIGURE SERVICE
     await service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
         isForegroundMode: true,
         autoStart: false,
-        notificationChannelId: AppConstants.serviceChannelId,
-        initialNotificationTitle: AppConstants.notificationTitle,
-        initialNotificationContent: "Initializing...",
+        notificationChannelId: 'driver_optimizer_channel',
+        initialNotificationTitle: 'Driver Optimizer',
+        initialNotificationContent: 'Initializing...',
       ),
       iosConfiguration: IosConfiguration(),
     );
@@ -35,34 +52,36 @@ class BackgroundService {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     try {
-      // 🔥 WAJIB BANGET (ini sering jadi penyebab crash)
+      // 🔥 WAJIB untuk background isolate
       DartPluginRegistrant.ensureInitialized();
 
-      // 🔥 kasih delay biar isolate siap
+      // kasih delay biar stabil
       await Future.delayed(const Duration(milliseconds: 300));
 
+      // SET NOTIFICATION
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
-          title: "Driver Optimizer",
-          content: "Service running...",
+          title: 'Driver Optimizer',
+          content: 'Service running...',
         );
       }
 
+      // HANDLE STOP
       service.on('stopService').listen((event) {
         service.stopSelf();
       });
 
-      // 🔥 SAFE START (tidak boleh crash)
+      // 🔥 SAFE EXECUTION (ANTI CRASH)
       _safeRun(() => GPSService.start(), "GPS");
       _safeRun(() => NetworkService.start(), "NETWORK");
       _safeRun(() => WatchdogService.start(service), "WATCHDOG");
 
-      // heartbeat
+      // 🔁 HEARTBEAT
       Timer.periodic(const Duration(seconds: 10), (timer) {
         if (service is AndroidServiceInstance) {
           service.setForegroundNotificationInfo(
-            title: "Driver Optimizer",
-            content: "GPS & Network active",
+            title: 'Driver Optimizer',
+            content: 'GPS & Network active',
           );
         }
       });
@@ -73,6 +92,7 @@ class BackgroundService {
     }
   }
 
+  // 🔒 SAFE WRAPPER
   static void _safeRun(Function fn, String name) {
     try {
       fn();
