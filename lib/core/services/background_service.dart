@@ -17,7 +17,7 @@ class BackgroundService {
 
     final service = FlutterBackgroundService();
 
-    // 🔥 WAJIB: Notification Channel (Android 8+)
+    // 🔥 Notification Channel
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'driver_optimizer_channel',
       'Driver Optimizer Service',
@@ -25,15 +25,14 @@ class BackgroundService {
       importance: Importance.low,
     );
 
-    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    final FlutterLocalNotificationsPlugin notifications =
         FlutterLocalNotificationsPlugin();
 
-    await flutterLocalNotificationsPlugin
+    await notifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 🔥 CONFIGURE SERVICE
     await service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
@@ -57,7 +56,6 @@ class BackgroundService {
       final FlutterLocalNotificationsPlugin notifications =
           FlutterLocalNotificationsPlugin();
 
-      // 🔥 INIT NOTIFICATION
       const AndroidInitializationSettings androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -65,23 +63,22 @@ class BackgroundService {
         const InitializationSettings(android: androidSettings),
       );
 
-      // 🔥 FORCE NOTIF (HILANGKAN "Initializing...")
+      // 🔥 FORCE UPDATE NOTIFICATION
       await notifications.show(
         999,
         'Driver Optimizer',
         'Service Started',
         const NotificationDetails(
           android: AndroidNotificationDetails(
-             'driver_optimizer_channel',
-             'Driver Optimizer Service',
-             importance: Importance.low,
-             priority: Priority.low,
-             ongoing: true,
+            'driver_optimizer_channel',
+            'Driver Optimizer Service',
+            importance: Importance.low,
+            priority: Priority.low,
+            ongoing: true,
           ),
         ),
       );
 
-      // OPTIONAL: tetap pakai foreground service
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title: 'Driver Optimizer',
@@ -93,32 +90,41 @@ class BackgroundService {
         service.stopSelf();
       });
 
-      // 🔥 START SERVICE SAFE
+      // 🔥 SAFE START SERVICES
       _safeRun(() => GPSService.start(), "GPS");
       _safeRun(() => NetworkService.start(), "NETWORK");
       _safeRun(() => WatchdogService.start(service), "WATCHDOG");
 
-     // 🔁 UPDATE REALTIME
-     Timer.periodic(const Duration(seconds: 5), (timer) async {
-       await notifications.show(
-         999,
-         'Driver Optimizer',
-         'GPS OK • Network OK • Running',
-         const NotificationDetails(
-           android: AndroidNotificationDetails(
+      // 🔁 UPDATE BERKALA
+      Timer.periodic(const Duration(seconds: 5), (timer) async {
+        await notifications.show(
+          999,
+          'Driver Optimizer',
+          'Running • GPS OK • Network OK',
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
               'driver_optimizer_channel',
               'Driver Optimizer Service',
               importance: Importance.low,
               priority: Priority.low,
               ongoing: true,
-           ),
-         ),
-       );
-     });
+            ),
+          ),
+        );
+      });
 
     } catch (e, stack) {
-    debugPrint("SERVICE ERROR: $e");
-    debugPrint(stack.toString());
+      debugPrint("SERVICE ERROR: $e");
+      debugPrint(stack.toString());
+    }
+  }
+
+  // 🔒 SAFE WRAPPER (HARUS DI DALAM CLASS, BUKAN DI DALAM METHOD)
+  static void _safeRun(Function fn, String name) {
+    try {
+      fn();
+    } catch (e) {
+      debugPrint("$name ERROR: $e");
     }
   }
 }
