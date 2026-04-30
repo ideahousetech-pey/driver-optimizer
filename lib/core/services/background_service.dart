@@ -17,11 +17,11 @@ class BackgroundService {
 
     final service = FlutterBackgroundService();
 
-    // 🔥 CREATE NOTIFICATION CHANNEL (WAJIB)
+    // 🔥 WAJIB: Notification Channel (Android 8+)
     const AndroidNotificationChannel channel = AndroidNotificationChannel(
       'driver_optimizer_channel',
       'Driver Optimizer Service',
-      description: 'Background service untuk menjaga GPS & koneksi',
+      description: 'Background service untuk GPS & Network',
       importance: Importance.low,
     );
 
@@ -52,17 +52,17 @@ class BackgroundService {
   @pragma('vm:entry-point')
   static void onStart(ServiceInstance service) async {
     try {
-      // 🔥 WAJIB untuk background isolate
+      // 🔥 WAJIB untuk plugin di background
       DartPluginRegistrant.ensureInitialized();
 
-      // kasih delay biar stabil
+      // kasih delay supaya isolate stabil
       await Future.delayed(const Duration(milliseconds: 300));
 
-      // SET NOTIFICATION
+      // 🔥 UPDATE AWAL (hapus "Initializing...")
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title: 'Driver Optimizer',
-          content: 'Service running...',
+          content: 'Service starting...',
         );
       }
 
@@ -71,18 +71,30 @@ class BackgroundService {
         service.stopSelf();
       });
 
-      // 🔥 SAFE EXECUTION (ANTI CRASH)
+      // 🔥 START SERVICES (SAFE)
       _safeRun(() => GPSService.start(), "GPS");
       _safeRun(() => NetworkService.start(), "NETWORK");
       _safeRun(() => WatchdogService.start(service), "WATCHDOG");
 
-      // 🔁 HEARTBEAT
-      Timer.periodic(const Duration(seconds: 10), (timer) {
-        if (service is AndroidServiceInstance) {
-          service.setForegroundNotificationInfo(
-            title: 'Driver Optimizer',
-            content: 'GPS & Network active',
-          );
+      // 🔥 UPDATE LANGSUNG SETELAH START
+      if (service is AndroidServiceInstance) {
+        service.setForegroundNotificationInfo(
+          title: 'Driver Optimizer',
+          content: 'GPS & Network Active',
+        );
+      }
+
+      // 🔁 UPDATE BERKALA (BIAR HIDUP TERUS)
+      Timer.periodic(const Duration(seconds: 5), (timer) {
+        try {
+          if (service is AndroidServiceInstance) {
+            service.setForegroundNotificationInfo(
+              title: 'Driver Optimizer',
+              content: 'Running • GPS OK • Network OK',
+            );
+          }
+        } catch (e) {
+          debugPrint("NOTIFICATION ERROR: $e");
         }
       });
 
@@ -92,7 +104,7 @@ class BackgroundService {
     }
   }
 
-  // 🔒 SAFE WRAPPER
+  // 🔒 SAFE WRAPPER (ANTI CRASH)
   static void _safeRun(Function fn, String name) {
     try {
       fn();
