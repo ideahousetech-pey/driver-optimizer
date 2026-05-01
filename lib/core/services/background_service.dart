@@ -52,7 +52,7 @@ class BackgroundService {
 
         // 🔥 dummy saja (tidak akan dipakai)
         initialNotificationTitle: 'Driver Optimizer',
-        initialNotificationContent: 'Starting Service...',
+        initialNotificationContent: 'Initializing...',
       ),
 
       iosConfiguration: IosConfiguration(),
@@ -86,8 +86,13 @@ class BackgroundService {
       // 🔥 SET FOREGROUND MANUAL
       if (service is AndroidServiceInstance) {
         await service.setAsForegroundService();
+        final androidService = service;
+
+        await Future.delayed(
+          const Duration(milliseconds: 500),
+        );
         
-          service.setForegroundNotificationInfo(
+          androidService.setForegroundNotificationInfo(
             title: 'Driver Optimizer',
             content: 'GPS & Network Active',
             );
@@ -140,7 +145,8 @@ class BackgroundService {
 
               androidService.setForegroundNotificationInfo(
                 title: 'Driver Optimizer',
-                content: 'GPS: ${GPSService.accuracy.toStringAsFixed(0)}m • Ping: ${NetworkService.pingMs}ms',
+                content: 'GPS: ${GPSService.accuracy.toStringAsFixed(0)}m'
+                ' • Ping: ${NetworkService.pingMs}ms',
                 );
                        
           } catch (e) {
