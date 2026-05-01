@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import '../../core/services/background_service.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import '../../core/services/gps_service.dart';
+import '../../core/services/network_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,89 +18,266 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   bool isRunning = false;
 
-  Future<void> startService() async {
-  try {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> toggleService() async {
     final service = FlutterBackgroundService();
 
-    // 🔥 cek dulu
-    final running = await service.isRunning();
-    if (running) {
-      debugPrint("Service already running");
-      return;
+    if (isRunning) {
+      service.invoke('stopService');
+    } else {
+      await service.startService();
     }
-
-    // 🔥 request permission
-    final location = await Permission.location.request();
-    final notification = await Permission.notification.request();
-
-    if (!location.isGranted || !notification.isGranted) {
-      debugPrint("Permission denied");
-      return;
-    }
-
-    // 🔥 delay stabilisasi
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // 🔥 init hanya sekali
-    await BackgroundService.initialize();
-
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // 🔥 start service
-    await service.startService();
 
     setState(() {
-      isRunning = true;
+      isRunning = !isRunning;
     });
-
-    debugPrint("SERVICE START SUCCESS");
-
-  } catch (e, stack) {
-    debugPrint("START ERROR: $e");
-    debugPrint(stack.toString());
-  }
-}
-
-  Future<void> stopService() async {
-    final service = FlutterBackgroundService();
-    service.invoke("stopService");
-
-    setState(() => isRunning = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Driver Optimizer")),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: isRunning ? Colors.green : Colors.red,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                isRunning ? "Service Running" : "Service Stopped",
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(height: 30),
+      backgroundColor: const Color(0xFF020617),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 10),
 
-            ElevatedButton(
-              onPressed: isRunning ? null : startService,
-              child: const Text("START"),
-            ),
+              Text(
+                'Driver Optimizer',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
 
-            ElevatedButton(
-              onPressed: isRunning ? stopService : null,
-              child: const Text("STOP"),
-            ),
-          ],
+              const SizedBox(height: 6),
+
+              Text(
+                'GPS & Network Stabilizer',
+                style: GoogleFonts.poppins(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+              ),
+
+              const SizedBox(height: 30),
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF1E293B),
+                      Color(0xFF0F172A),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      isRunning
+                          ? Icons.shield
+                          : Icons.shield_outlined,
+                      size: 80,
+                      color: isRunning
+                          ? Colors.greenAccent
+                          : Colors.white54,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    Text(
+                      isRunning
+                          ? 'PROTECTION ACTIVE'
+                          : 'SERVICE STOPPED',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Text(
+                      isRunning
+                          ? 'GPS & Network optimized'
+                          : 'Tap start to activate',
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _infoCard(
+                      title: 'GPS Accuracy',
+                      value:
+                          '${GPSService.accuracy.toStringAsFixed(0)} m',
+                      icon: Icons.gps_fixed,
+                    ),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  Expanded(
+                    child: _infoCard(
+                      title: 'Ping',
+                      value:
+                          '${NetworkService.pingMs} ms',
+                      icon: Icons.network_ping,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: _infoCard(
+                      title: 'Speed',
+                      value:
+                          '${GPSService.speed.toStringAsFixed(0)} km/h',
+                      icon: Icons.speed,
+                    ),
+                  ),
+
+                  const SizedBox(width: 16),
+
+                  Expanded(
+                    child: _infoCard(
+                      title: 'Network',
+                      value: NetworkService.isConnected
+                          ? 'ONLINE'
+                          : 'OFFLINE',
+                      icon: Icons.wifi,
+                    ),
+                  ),
+                ],
+              ),
+
+              const Spacer(),
+
+              SizedBox(
+                width: double.infinity,
+                height: 62,
+                child: ElevatedButton(
+                  onPressed: toggleService,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isRunning
+                        ? Colors.redAccent
+                        : Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(22),
+                    ),
+                  ),
+                  child: Text(
+                    isRunning
+                        ? 'STOP SERVICE'
+                        : 'START SERVICE',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _infoCard({
+    required String title,
+    required String value,
+    required IconData icon,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111827),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: Colors.greenAccent,
+            size: 28,
+          ),
+
+          const SizedBox(height: 14),
+
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
