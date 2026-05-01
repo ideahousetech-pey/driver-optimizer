@@ -1,40 +1,13 @@
-import 'package:flutter/widgets.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'gps_service.dart';
-import 'network_service.dart';
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:ui';
+
 class BackgroundService {
-  static final FlutterLocalNotificationsPlugin
-      _notifications =
-      FlutterLocalNotificationsPlugin();
-
   static Future<void> initialize() async {
-    const androidSettings =
-        AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-
-    const settings = InitializationSettings(
-      android: androidSettings,
-    );
-
-    await _notifications.initialize(settings);
-
-    const AndroidNotificationChannel channel =
-        AndroidNotificationChannel(
-      'driver_optimizer_channel',
-      'Driver Optimizer Service',
-      description: 'Realtime optimizer',
-      importance: Importance.low,
-    );
-
-    await _notifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
-
     final service = FlutterBackgroundService();
 
     await service.configure(
@@ -42,13 +15,10 @@ class BackgroundService {
         onStart: onStart,
         autoStart: false,
         isForegroundMode: true,
-        notificationChannelId:
-            'driver_optimizer_channel',
-        initialNotificationTitle:
-            'Driver Optimizer',
-        initialNotificationContent:
-            'Starting service...',
         foregroundServiceNotificationId: 1001,
+        notificationChannelId: 'driver_optimizer',
+        initialNotificationTitle: 'Driver Optimizer',
+        initialNotificationContent: 'Service starting...',
       ),
       iosConfiguration: IosConfiguration(),
     );
@@ -60,26 +30,102 @@ class BackgroundService {
   ) async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    await GPSService.start();
-    await NetworkService.start();
+    DartPluginRegistrant.ensureInitialized();
 
-    service.on('stopService').listen((event) {
-      GPSService.stop();
-      NetworkService.stop();
-      service.stopSelf();
+    final androidService =
+        service as AndroidServiceInstance;
+
+    double accuracy = 0;
+    double speed = 0;
+
+    bool networkOnline = false;
+
+    // UPDATE NOTIFICATION
+    Future<void> updateNotification() async {
+      await androidService
+          .setForegroundNotificationInfo(
+        title: 'Driver Optimizer ACTIVE',
+        content:
+            'GPS ${accuracy.toStringAsFixed(0)}m • ${networkOnline ? 'ONLINE' : 'OFFLINE'}',
+      );
+    }
+
+    // GPS STREAM
+    try {
+      final enabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      if (!enabled) {
+        debugPrint('GPS disabled');
+      } else {
+        LocationPermission permission =
+            await Geolocator.checkPermission();
+
+        if (permission ==
+            LocationPermission.denied) {
+          permission =
+              await Geolocator.requestPermission();
+        }
+
+        Geolocator.getPositionStream(
+          locationSettings:
+              const LocationSettings(
+            accuracy:
+                LocationAccuracy.bestForNavigation,
+            distanceFilter: 1,
+          ),
+        ).listen((position) async {
+          accuracy = position.accuracy;
+          speed = position.speed * 3.6;
+
+          service.invoke(
+            'update',
+            {
+              'accuracy': accuracy,
+              'speed': speed,
+              'network': networkOnline,
+            },
+          );
+
+          await updateNotification();
+        });
+      }
+    } catch (e) {
+      debugPrint('GPS ERROR: $e');
+    }
+
+    // NETWORK
+    Connectivity()
+        .onConnectivityChanged
+        .listen((event) async {
+      networkOnline =
+          !event.contains(
+            ConnectivityResult.none,
+          );
+
+      service.invoke(
+        'update',
+        {
+          'accuracy': accuracy,
+          'speed': speed,
+          'network': networkOnline,
+        },
+      );
+
+      await updateNotification();
     });
 
+    // KEEP ALIVE
     Timer.periodic(
-      const Duration(seconds: 2),
-      (timer) async {
-        if (service is AndroidServiceInstance) {
-          await service.setForegroundNotificationInfo(
-            title: 'Driver Optimizer ACTIVE',
-            content:
-                'GPS ${GPSService.accuracy.toStringAsFixed(0)}m | Ping ${NetworkService.pingMs}ms',
-          );
-        }
+      const Duration(seconds: 10),
+      (_) async {
+        await updateNotification();
       },
     );
+
+    // STOP SERVICE
+    service.on('stopService').listen((event) {
+      service.stopSelf();
+    });
   }
 }
