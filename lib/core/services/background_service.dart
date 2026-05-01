@@ -46,13 +46,13 @@ class BackgroundService {
         autoStart: false,
 
         // 🔥 disable initial notif plugin
-        isForegroundMode: false,
+        isForegroundMode: true,
 
         notificationChannelId: notificationChannelId,
 
         // 🔥 dummy saja (tidak akan dipakai)
-        initialNotificationTitle: '',
-        initialNotificationContent: '',
+        initialNotificationTitle: 'Driver Optimizer',
+        initialNotificationContent: 'Starting Service...',
       ),
 
       iosConfiguration: IosConfiguration(),
@@ -86,6 +86,12 @@ class BackgroundService {
       // 🔥 SET FOREGROUND MANUAL
       if (service is AndroidServiceInstance) {
         await service.setAsForegroundService();
+        
+          service.setForegroundNotificationInfo(
+            title: 'Driver Optimizer',
+            content: 'GPS & Network Active',
+            );
+        
       }
 
       // 🔥 NOTIFICATION AWAL
@@ -130,22 +136,13 @@ class BackgroundService {
         const Duration(seconds: 5),
         (timer) async {
           try {
-            await notifications.show(
-              999,
-              'Driver Optimizer',
-              'Running • GPS OK • Network OK',
-              const NotificationDetails(
-                android: AndroidNotificationDetails(
-                  notificationChannelId,
-                  'Driver Optimizer Service',
-                  importance: Importance.low,
-                  priority: Priority.low,
-                  ongoing: true,
-                  autoCancel: false,
-                  onlyAlertOnce: true,
-                ),
-              ),
-            );
+            final androidService = service as AndroidServiceInstance;
+
+              androidService.setForegroundNotificationInfo(
+                title: 'Driver Optimizer',
+                content: 'GPS: ${GPSService.accuracy.toStringAsFixed(0)}m • Ping: ${NetworkService.pingMs}ms',
+                );
+                       
           } catch (e) {
             debugPrint(
               'NOTIFICATION TIMER ERROR: $e',
