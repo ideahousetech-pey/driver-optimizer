@@ -1,176 +1,85 @@
-import 'dart:async';
-import 'dart:ui';
-
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
 import 'gps_service.dart';
 import 'network_service.dart';
-import 'watchdog_service.dart';
+import 'dart:async';
 
 class BackgroundService {
-  static bool _isInitialized = false;
-
-  static const String notificationChannelId =
-      'driver_optimizer_channel';
+  static final FlutterLocalNotificationsPlugin
+      _notifications =
+      FlutterLocalNotificationsPlugin();
 
   static Future<void> initialize() async {
-    if (_isInitialized) return;
+    const androidSettings =
+        AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
 
-    final service = FlutterBackgroundService();
+    const settings = InitializationSettings(
+      android: androidSettings,
+    );
 
-    // 🔥 Notification Channel
+    await _notifications.initialize(settings);
+
     const AndroidNotificationChannel channel =
         AndroidNotificationChannel(
-      notificationChannelId,
+      'driver_optimizer_channel',
       'Driver Optimizer Service',
-      description: 'Background service Driver Optimizer',
+      description: 'Realtime optimizer',
       importance: Importance.low,
     );
 
-    final FlutterLocalNotificationsPlugin notifications =
-        FlutterLocalNotificationsPlugin();
-
-    await notifications
+    await _notifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // 🔥 CONFIG SERVICE
+    final service = FlutterBackgroundService();
+
     await service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: onStart,
-
-        // 🔥 penting
         autoStart: false,
-
-        // 🔥 disable initial notif plugin
         isForegroundMode: true,
-
-        notificationChannelId: notificationChannelId,
-
-        // 🔥 dummy saja (tidak akan dipakai)
-        initialNotificationTitle: 'Driver Optimizer',
-        initialNotificationContent: 'Initializing...',
+        notificationChannelId:
+            'driver_optimizer_channel',
+        initialNotificationTitle:
+            'Driver Optimizer',
+        initialNotificationContent:
+            'Starting service...',
+        foregroundServiceNotificationId: 1001,
       ),
-
       iosConfiguration: IosConfiguration(),
     );
-
-    _isInitialized = true;
   }
 
   @pragma('vm:entry-point')
   static Future<void> onStart(
     ServiceInstance service,
   ) async {
-    try {
-      DartPluginRegistrant.ensureInitialized();
+    WidgetsFlutterBinding.ensureInitialized();
 
-      final FlutterLocalNotificationsPlugin notifications =
-          FlutterLocalNotificationsPlugin();
+    await GPSService.start();
+    await NetworkService.start();
 
-      // 🔥 INIT NOTIFICATION
-      const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
-      );
+    service.on('stopService').listen((event) {
+      GPSService.stop();
+      NetworkService.stop();
+      service.stopSelf();
+    });
 
-      await notifications.initialize(
-        const InitializationSettings(
-          android: androidSettings,
-        ),
-      );
-
-      // 🔥 SET FOREGROUND MANUAL
-      if (service is AndroidServiceInstance) {
-        await service.setAsForegroundService();
-        final androidService = service;
-
-        await Future.delayed(
-          const Duration(milliseconds: 500),
-        );
-        
-          androidService.setForegroundNotificationInfo(
-            title: 'Driver Optimizer',
-            content: 'GPS & Network Active',
-            );
-        
-      }
-
-      // 🔥 NOTIFICATION AWAL
-      await notifications.show(
-        999,
-        'Driver Optimizer',
-        'Service Active',
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            notificationChannelId,
-            'Driver Optimizer Service',
-            importance: Importance.low,
-            priority: Priority.low,
-            ongoing: true,
-            autoCancel: false,
-            onlyAlertOnce: true,
-          ),
-        ),
-      );
-
-      // 🔥 STOP LISTENER
-      service.on('stopService').listen((event) async {
-        await notifications.cancel(999);
-        service.stopSelf();
-      });
-
-      // 🔥 START SERVICES
-      _safeRun(() => GPSService.start(), 'GPS');
-
-      _safeRun(
-        () => NetworkService.start(),
-        'NETWORK',
-      );
-
-      _safeRun(
-        () => WatchdogService.start(service),
-        'WATCHDOG',
-      );
-
-      // 🔥 UPDATE NOTIF REALTIME
-      Timer.periodic(
-        const Duration(seconds: 5),
-        (timer) async {
-          try {
-            final androidService = service as AndroidServiceInstance;
-
-              androidService.setForegroundNotificationInfo(
-                title: 'Driver Optimizer',
-                content: 'GPS: ${GPSService.accuracy.toStringAsFixed(0)}m'
-                ' • Ping: ${NetworkService.pingMs}ms',
-                );
-                       
-          } catch (e) {
-            debugPrint(
-              'NOTIFICATION TIMER ERROR: $e',
-            );
-          }
-        },
-      );
-    } catch (e, stack) {
-      debugPrint('BACKGROUND SERVICE ERROR: $e');
-      debugPrint(stack.toString());
-    }
-  }
-
-  // 🔥 SAFE WRAPPER
-  static void _safeRun(
-    Function fn,
-    String name,
-  ) {
-    try {
-      fn();
-    } catch (e) {
-      debugPrint('$name ERROR: $e');
-    }
+    Timer.periodic(
+      const Duration(seconds: 2),
+      (timer) async {
+        if (service is AndroidServiceInstance) {
+          await service.setForegroundNotificationInfo(
+            title: 'Driver Optimizer ACTIVE',
+            content:
+                'GPS ${GPSService.accuracy.toStringAsFixed(0)}m | Ping ${NetworkService.pingMs}ms',
+          );
+        }
+      },
+    );
   }
 }

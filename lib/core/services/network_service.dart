@@ -1,86 +1,67 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 class NetworkService {
-  static Timer? _timer;
-
   static bool isConnected = false;
-
   static int pingMs = 0;
 
-  static Future<void> start() async {
-    _timer?.cancel();
+  static StreamSubscription? _connectivitySub;
+  static Timer? _pingTimer;
 
-    _timer = Timer.periodic(
+  static Future<void> start() async {
+    await _checkInternet();
+
+    _connectivitySub?.cancel();
+
+    _connectivitySub = Connectivity()
+        .onConnectivityChanged
+        .listen((_) async {
+      await _checkInternet();
+    });
+
+    _pingTimer?.cancel();
+
+    _pingTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) async {
-        await checkConnection();
+        await _pingGoogle();
       },
     );
-
-    await checkConnection();
   }
 
-  static Future<void> checkConnection() async {
-    try {
-      final stopwatch = Stopwatch()
-        ..start();
+  static Future<void> _checkInternet() async {
+    isConnected =
+        await InternetConnection().hasInternetAccess;
 
-      final result =
-          await InternetAddress.lookup(
+    debugPrint('Internet: $isConnected');
+  }
+
+  static Future<void> _pingGoogle() async {
+    try {
+      final stopwatch = Stopwatch()..start();
+
+      final result = await InternetAddress.lookup(
         'google.com',
       );
 
       stopwatch.stop();
 
-      isConnected = result.isNotEmpty;
-
-      pingMs = stopwatch.elapsedMilliseconds;
-
-      debugPrint(
-        'NETWORK => '
-        'Connected: $isConnected '
-        '| Ping: ${pingMs}ms',
-      );
-
-      if (!isConnected) {
-        await autoReconnect();
+      if (result.isNotEmpty) {
+        pingMs = stopwatch.elapsedMilliseconds;
       }
-    } catch (e) {
-      isConnected = false;
 
-      debugPrint('NETWORK ERROR: $e');
-    }
-  }
-
-  static Future<void> autoReconnect() async {
-    try {
-      debugPrint('AUTO RECONNECT...');
-
-      await Future.delayed(
-        const Duration(seconds: 2),
-      );
-
-      final result =
-          await InternetAddress.lookup(
-        'google.com',
-      );
-
-      isConnected = result.isNotEmpty;
-
-      debugPrint(
-        'RECONNECTED => $isConnected',
-      );
-    } catch (e) {
-      debugPrint(
-        'RECONNECT FAILED: $e',
-      );
+      debugPrint('Ping: $pingMs ms');
+    } catch (_) {
+      pingMs = 999;
     }
   }
 
   static void stop() {
-    _timer?.cancel();
+    _connectivitySub?.cancel();
+    _pingTimer?.cancel();
   }
 }

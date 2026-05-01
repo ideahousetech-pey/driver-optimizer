@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/services/background_service.dart';
 import 'features/dashboard/dashboard_page.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await BackgroundService.initialize();
@@ -11,8 +11,7 @@ void main() async {
   runApp(const DriverOptimizerApp());
 }
 
-class DriverOptimizerApp
-    extends StatelessWidget {
+class DriverOptimizerApp extends StatelessWidget {
   const DriverOptimizerApp({super.key});
 
   @override
