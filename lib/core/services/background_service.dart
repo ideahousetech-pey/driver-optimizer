@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:ui';
 
 class BackgroundService {
   static Future<void> initialize() async {
@@ -29,8 +28,6 @@ class BackgroundService {
     ServiceInstance service,
   ) async {
     WidgetsFlutterBinding.ensureInitialized();
-
-    DartPluginRegistrant.ensureInitialized();
 
     final androidService =
         service as AndroidServiceInstance;
