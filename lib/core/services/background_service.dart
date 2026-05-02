@@ -24,105 +24,111 @@ class BackgroundService {
   }
 
   @pragma('vm:entry-point')
-  static Future<void> onStart(
-    ServiceInstance service,
-  ) async {
+  static Future<void> onStart(ServiceInstance service) async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    final androidService =
-        service as AndroidServiceInstance;
-
-    double accuracy = 0;
-    double speed = 0;
-
-    bool networkOnline = false;
-
-    // UPDATE NOTIFICATION
-    Future<void> updateNotification() async {
-      await androidService
-          .setForegroundNotificationInfo(
-        title: 'Driver Optimizer ACTIVE',
-        content:
-            'GPS ${accuracy.toStringAsFixed(0)}m • ${networkOnline ? 'ONLINE' : 'OFFLINE'}',
-      );
+    // Hanya berjalan di Android
+    if (service is! AndroidServiceInstance) {
+      debugPrint('BackgroundService hanya mendukung Android');
+      service.stopSelf();
+      return;
     }
 
-    // GPS STREAM
+    // service sudah otomatis bertipe AndroidServiceInstance setelah pengecekan di atas
+    double accuracy = 0;
+    double speed = 0;
+    bool networkOnline = false;
+
+    Future<void> updateNotification() async {
+      try {
+        await service.setForegroundNotificationInfo(
+          title: 'Driver Optimizer ACTIVE',
+          content: 'GPS ${accuracy.toStringAsFixed(0)}m • ${networkOnline ? 'ONLINE' : 'OFFLINE'}',
+        );
+      } catch (e) {
+        debugPrint('Gagal update notifikasi: $e');
+      }
+    }
+
+    StreamSubscription<Position>? positionSubscription;
+    StreamSubscription<List<ConnectivityResult>>? connectivitySubscription;
+    Timer? keepAliveTimer;
+
+    // GPS stream
     try {
-      final enabled =
-          await Geolocator.isLocationServiceEnabled();
-
-      if (!enabled) {
-        debugPrint('GPS disabled');
+      final gpsEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!gpsEnabled) {
+        debugPrint('GPS tidak aktif');
       } else {
-        LocationPermission permission =
-            await Geolocator.checkPermission();
-
-        if (permission ==
-            LocationPermission.denied) {
-          permission =
-              await Geolocator.requestPermission();
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
         }
-
-        Geolocator.getPositionStream(
-          locationSettings:
-              const LocationSettings(
-            accuracy:
-                LocationAccuracy.bestForNavigation,
-            distanceFilter: 1,
-          ),
-        ).listen((position) async {
-          accuracy = position.accuracy;
-          speed = position.speed * 3.6;
-
-          service.invoke(
-            'update',
-            {
-              'accuracy': accuracy,
-              'speed': speed,
-              'network': networkOnline,
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
+          positionSubscription = Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.bestForNavigation,
+              distanceFilter: 1,
+            ),
+          ).listen(
+            (Position position) {
+              accuracy = position.accuracy;
+              speed = position.speed * 3.6; // m/s → km/h
+              try {
+                service.invoke('update', {
+                  'accuracy': accuracy,
+                  'speed': speed,
+                  'network': networkOnline,
+                });
+              } catch (e) {
+                debugPrint('Error invoke update: $e');
+              }
+              updateNotification();
+            },
+            onError: (error) {
+              debugPrint('GPS stream error: $error');
             },
           );
-
-          await updateNotification();
-        });
+        } else {
+          debugPrint('Izin lokasi tidak diberikan');
+        }
       }
     } catch (e) {
       debugPrint('GPS ERROR: $e');
     }
 
-    // NETWORK
-    Connectivity()
+    // Network monitor
+    connectivitySubscription = Connectivity()
         .onConnectivityChanged
-        .listen((event) async {
-      networkOnline =
-          !event.contains(
-            ConnectivityResult.none,
-          );
-
-      service.invoke(
-        'update',
-        {
+        .listen((List<ConnectivityResult> results) {
+      networkOnline = !results.contains(ConnectivityResult.none);
+      try {
+        service.invoke('update', {
           'accuracy': accuracy,
           'speed': speed,
           'network': networkOnline,
-        },
-      );
-
-      await updateNotification();
+        });
+      } catch (e) {
+        debugPrint('Error invoke update: $e');
+      }
+      updateNotification();
     });
 
-    // KEEP ALIVE
-    Timer.periodic(
+    // Keep alive notification update
+    keepAliveTimer = Timer.periodic(
       const Duration(seconds: 10),
-      (_) async {
-        await updateNotification();
-      },
+      (_) async => updateNotification(),
     );
 
-    // STOP SERVICE
+    // Cleanup ketika stop
     service.on('stopService').listen((event) {
+      positionSubscription?.cancel();
+      connectivitySubscription?.cancel();
+      keepAliveTimer?.cancel();
       service.stopSelf();
     });
+
+    await updateNotification();
   }
 }
