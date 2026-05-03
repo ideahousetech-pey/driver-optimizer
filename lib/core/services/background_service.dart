@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 
+@pragma('vm:entry-point')
 class BackgroundService {
   static Future<void> initialize() async {
     final service = FlutterBackgroundService();
@@ -27,14 +28,12 @@ class BackgroundService {
   static Future<void> onStart(ServiceInstance service) async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Hanya berjalan di Android
     if (service is! AndroidServiceInstance) {
       debugPrint('BackgroundService hanya mendukung Android');
       service.stopSelf();
       return;
     }
 
-    // service sudah otomatis bertipe AndroidServiceInstance setelah pengecekan di atas
     double accuracy = 0;
     double speed = 0;
     bool networkOnline = false;
@@ -43,7 +42,8 @@ class BackgroundService {
       try {
         await service.setForegroundNotificationInfo(
           title: 'Driver Optimizer ACTIVE',
-          content: 'GPS ${accuracy.toStringAsFixed(0)}m • ${networkOnline ? 'ONLINE' : 'OFFLINE'}',
+          content:
+              'GPS ${accuracy.toStringAsFixed(0)}m • ${networkOnline ? 'ONLINE' : 'OFFLINE'}',
         );
       } catch (e) {
         debugPrint('Gagal update notifikasi: $e');
@@ -54,7 +54,7 @@ class BackgroundService {
     StreamSubscription<List<ConnectivityResult>>? connectivitySubscription;
     Timer? keepAliveTimer;
 
-    // GPS stream
+    // GPS STREAM
     try {
       final gpsEnabled = await Geolocator.isLocationServiceEnabled();
       if (!gpsEnabled) {
@@ -64,6 +64,7 @@ class BackgroundService {
         if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
         }
+
         if (permission == LocationPermission.whileInUse ||
             permission == LocationPermission.always) {
           positionSubscription = Geolocator.getPositionStream(
@@ -74,7 +75,7 @@ class BackgroundService {
           ).listen(
             (Position position) {
               accuracy = position.accuracy;
-              speed = position.speed * 3.6; // m/s → km/h
+              speed = position.speed * 3.6;
               try {
                 service.invoke('update', {
                   'accuracy': accuracy,
@@ -98,7 +99,7 @@ class BackgroundService {
       debugPrint('GPS ERROR: $e');
     }
 
-    // Network monitor
+    // NETWORK MONITOR
     connectivitySubscription = Connectivity()
         .onConnectivityChanged
         .listen((List<ConnectivityResult> results) {
@@ -115,13 +116,13 @@ class BackgroundService {
       updateNotification();
     });
 
-    // Keep alive notification update
+    // KEEP ALIVE
     keepAliveTimer = Timer.periodic(
       const Duration(seconds: 10),
       (_) async => updateNotification(),
     );
 
-    // Cleanup ketika stop
+    // STOP SERVICE
     service.on('stopService').listen((event) {
       positionSubscription?.cancel();
       connectivitySubscription?.cancel();
