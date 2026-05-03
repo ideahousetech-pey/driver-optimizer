@@ -1,3 +1,4 @@
+import 'dart:ui'; // ← tambahkan untuk PlatformDispatcher
 import 'package:flutter/material.dart';
 import 'core/services/background_service.dart';
 import 'features/dashboard/dashboard_page.dart';
@@ -8,6 +9,14 @@ bool isBackgroundServiceReady = false;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ---------- Error handler global (SOLUSI NO.4) ----------
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Background isolate error: $error');
+    debugPrint('Stack trace: $stack');
+    // Return true agar error tidak mematikan aplikasi utama (meskipun isolate mungkin sudah mati)
+    return true;
+  };
+
   try {
     await BackgroundService.initialize();
     isBackgroundServiceReady = true;
@@ -15,7 +24,6 @@ Future<void> main() async {
   } catch (e, stackTrace) {
     debugPrint('Gagal inisialisasi BackgroundService: $e');
     debugPrint(stackTrace.toString());
-    // isBackgroundServiceReady tetap false, UI akan menyesuaikan
   }
 
   runApp(const DriverOptimizerApp());

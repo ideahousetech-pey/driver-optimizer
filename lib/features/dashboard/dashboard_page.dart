@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart'; // ← tambahkan
+import 'package:geolocator/geolocator.dart'; // ← tambahkan
 
-import '../../main.dart'; // Mengakses isBackgroundServiceReady
+
+import '../../main.dart'; // flag isBackgroundServiceReady
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -59,7 +62,34 @@ class _DashboardPageState extends State<DashboardPage> {
       if (isRunning) {
         service.invoke('stopService');
       } else {
+        // -----------------------------------------------------------------
+        // ✅ Minta izin notifikasi (Android 13+)
+        // -----------------------------------------------------------------
+        final notificationStatus = await Permission.notification.status;
+        if (notificationStatus.isDenied) {
+          await Permission.notification.request();
+        }
+
+        // ---------- IZIN LOKASI (SOLUSI NO.3) ----------
+      LocationPermission locPermission = await Geolocator.checkPermission();
+      if (locPermission == LocationPermission.denied) {
+        locPermission = await Geolocator.requestPermission();
+      }
+      if (locPermission == LocationPermission.denied ||
+          locPermission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Izin lokasi diperlukan untuk menjalankan service.'),
+            ),
+          );
+        }
+        return; // batalkan start
+      }
+
         await service.startService();
+
+        // Mulai mendengarkan update jika sebelumnya belum
         if (_serviceStream == null && isBackgroundServiceReady) {
           _listenService();
         }
@@ -107,19 +137,15 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14),
-                ),
+                Text(title,
+                    style: GoogleFonts.poppins(
+                        color: Colors.white70, fontSize: 14)),
                 const SizedBox(height: 6),
-                Text(
-                  value,
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(value,
+                    style: GoogleFonts.poppins(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold)),
               ],
             ),
           ),
@@ -142,19 +168,14 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           const Icon(Icons.gps_fixed, color: Colors.white, size: 60),
           const SizedBox(height: 16),
-          Text(
-            'Driver Optimizer',
-            style: GoogleFonts.poppins(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('Driver Optimizer',
+              style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          Text(
-            'GPS & Network Stabilizer',
-            style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14),
-          ),
+          Text('GPS & Network Stabilizer',
+              style: GoogleFonts.poppins(color: Colors.white70, fontSize: 14)),
         ],
       ),
     );
@@ -167,14 +188,14 @@ class _DashboardPageState extends State<DashboardPage> {
       child: ElevatedButton.icon(
         onPressed: toggleService,
         icon: Icon(isRunning ? Icons.stop_circle : Icons.play_circle_fill),
-        label: Text(
-          isRunning ? 'STOP SERVICE' : 'START SERVICE',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        label: Text(isRunning ? 'STOP SERVICE' : 'START SERVICE',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold, fontSize: 16)),
         style: ElevatedButton.styleFrom(
           backgroundColor: isRunning ? Colors.red : Colors.green,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         ),
       ),
     );
@@ -194,25 +215,22 @@ class _DashboardPageState extends State<DashboardPage> {
               _buildStartButton(),
               const SizedBox(height: 24),
               _statusCard(
-                title: 'GPS Accuracy',
-                value: '${gpsAccuracy.toStringAsFixed(1)} m',
-                icon: Icons.gps_fixed,
-                color: Colors.green,
-              ),
+                  title: 'GPS Accuracy',
+                  value: '${gpsAccuracy.toStringAsFixed(1)} m',
+                  icon: Icons.gps_fixed,
+                  color: Colors.green),
               const SizedBox(height: 16),
               _statusCard(
-                title: 'Speed',
-                value: '${speed.toStringAsFixed(1)} km/h',
-                icon: Icons.speed,
-                color: Colors.orange,
-              ),
+                  title: 'Speed',
+                  value: '${speed.toStringAsFixed(1)} km/h',
+                  icon: Icons.speed,
+                  color: Colors.orange),
               const SizedBox(height: 16),
               _statusCard(
-                title: 'Network Status',
-                value: networkOnline ? 'ONLINE' : 'OFFLINE',
-                icon: networkOnline ? Icons.wifi : Icons.wifi_off,
-                color: networkOnline ? Colors.green : Colors.red,
-              ),
+                  title: 'Network Status',
+                  value: networkOnline ? 'ONLINE' : 'OFFLINE',
+                  icon: networkOnline ? Icons.wifi : Icons.wifi_off,
+                  color: networkOnline ? Colors.green : Colors.red),
               const SizedBox(height: 30),
             ],
           ),
